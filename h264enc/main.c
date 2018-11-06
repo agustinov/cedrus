@@ -96,14 +96,19 @@ int main(const int argc, const char **argv)
 	int input_size = params.src_width * (params.src_height + params.src_height / 2);
 	void* input_buf = h264enc_get_input_buffer(encoder);
 
-	while (read_frame(in, input_buf, input_size))
-	{
-		if (h264enc_encode_picture(encoder))
-			write(out, output_buf, h264enc_get_bytestream_length(encoder));
-		else
-			printf("encoding error\n");
-	}
+	printf("input buf addr %08x, size %d\n", (unsigned int)input_buf, input_size);
 
+	printf("Runnig h264 encoding from file %s...\n", argv[1]);
+
+	while (read_frame(in, input_buf, input_size)) {
+		if (h264enc_encode_picture(encoder)) {
+			write(out, output_buf, h264enc_get_bytestream_length(encoder));
+		} else {
+			printf("encoding error\n");
+		}
+	}
+	
+	printf("Done!\n");
 	h264enc_free(encoder);
 
 err:

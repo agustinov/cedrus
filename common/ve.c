@@ -28,14 +28,24 @@
 #include "ve.h"
 
 #define DEVICE "/dev/cedar_dev"
-#define PAGE_OFFSET (0xc0000000) // from kernel
+#define PAGE_OFFSET (0xc0000000) // from kernel 0xC0000000
 #define PAGE_SIZE (4096)
 
 enum IOCTL_CMD
 {
+/*
 	IOCTL_UNKOWN = 0x100,
 	IOCTL_GET_ENV_INFO,
 	IOCTL_WAIT_VE,
+	IOCTL_RESET_VE,
+	IOCTL_ENABLE_VE,
+	IOCTL_DISABLE_VE,
+	IOCTL_SET_VE_FREQ,
+*/
+	IOCTL_UNKOWN = 0x100,
+	IOCTL_GET_ENV_INFO,
+	IOCTL_WAIT_VE_DE,
+	IOCTL_WAIT_VE_EN,
 	IOCTL_RESET_VE,
 	IOCTL_ENABLE_VE,
 	IOCTL_DISABLE_VE,
@@ -115,7 +125,9 @@ int ve_open(void)
 	writel(0x00130007, ve.regs + VE_CTRL);
 
 	ve.version = readl(ve.regs + VE_VERSION) >> 16;
-	printf("[VDPAU SUNXI] VE version 0x%04x opened.\n", ve.version);
+	printf("[CedarX SUNXI] VE version 0x%04x opened.\n", ve.version);
+	printf("REGS pa: %08X\n", info.registers);
+	printf("MEMORY pa %08X, page offset %08X size %d\n", info.reserved_mem, ve.first_memchunk.phys_addr, ve.first_memchunk.size);
 
 	return 1;
 
@@ -149,16 +161,20 @@ int ve_wait(int timeout)
 {
 	if (ve.fd == -1)
 		return 0;
-
-	return ioctl(ve.fd, IOCTL_WAIT_VE, timeout);
+	if (ve_get_version() >= 0x1633)
+		return ioctl(ve.fd, IOCTL_WAIT_VE_EN, timeout);
+	else
+		return ioctl(ve.fd, IOCTL_WAIT_VE_DE, timeout);
 }
 
 void *ve_get(int engine, uint32_t flags)
 {
 	if (pthread_mutex_lock(&ve.device_lock))
 		return NULL;
-
-	writel(0x00130000 | (engine & 0xf) | (flags & ~0xf), ve.regs + VE_CTRL);
+	if (ve_get_version() >= 0x1633)
+		writel(0x001300C0 | (engine & 0xf) | (flags & ~0xf), ve.regs + VE_CTRL);
+	else
+		writel(0x00130000 | (engine & 0xf) | (flags & ~0xf), ve.regs + VE_CTRL);
 
 	return ve.regs;
 }
